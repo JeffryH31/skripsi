@@ -6,7 +6,9 @@ FROM node:22-alpine AS node-builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+# Skip electron binary download (not needed in Docker/server environment)
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+RUN npm ci --ignore-scripts --omit=optional
 
 COPY . .
 RUN npm run build
@@ -63,7 +65,11 @@ RUN composer dump-autoload --optimize --no-dev
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Copy entrypoint script
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # PHP-FPM config: listen on port 9000
 EXPOSE 9000
 
-CMD ["php-fpm"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
