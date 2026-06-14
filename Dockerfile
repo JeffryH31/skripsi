@@ -1,6 +1,18 @@
-# ============================================================
-# Stage 1: Node — build frontend assets
-# ============================================================
+# Stage 1: Composer — install PHP dependencies (vendor/)
+FROM composer:2.6 AS vendor
+
+WORKDIR /app
+
+# Install dependencies first (layer cache)
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-scripts \
+    --no-autoloader \
+    --prefer-dist \
+    --ignore-platform-reqs
+
+# Stage 2: Node — build frontend assets
 FROM node:22-alpine AS node-builder
 
 WORKDIR /app
@@ -11,11 +23,14 @@ ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 RUN npm ci --ignore-scripts --legacy-peer-deps
 
 COPY . .
+
+# Ziggy (tightenco/ziggy) is imported from vendor/ in resources/js/app.js,
+# so we need the composer vendor folder available before building.
+COPY --from=vendor /app/vendor ./vendor
+
 RUN npm run build
 
-# ============================================================
-# Stage 2: PHP-FPM — production image
-# ============================================================
+# Stage 3: PHP-FPM — production image
 FROM php:8.3-fpm-alpine AS php
 
 # Install system dependencies
@@ -48,12 +63,11 @@ COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy composer files first (layer cache)
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
-
 # Copy application source
 COPY . .
+
+# Copy vendor from composer stage
+COPY --from=vendor /app/vendor ./vendor
 
 # Copy built frontend assets from node-builder stage
 COPY --from=node-builder /app/public/build ./public/build
