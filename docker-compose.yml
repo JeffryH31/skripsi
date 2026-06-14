@@ -1,0 +1,81 @@
+services:
+
+  # ──────────────────────────────────────────
+  # Nginx — reverse proxy & static file server
+  # ──────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: tugas_akhir_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - app_public:/var/www/html/public:ro
+    depends_on:
+      - php
+    networks:
+      - app_network
+
+  # ──────────────────────────────────────────
+  # PHP-FPM — Laravel application
+  # ──────────────────────────────────────────
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: php
+    container_name: tugas_akhir_php
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    volumes:
+      - app_public:/var/www/html/public
+      - app_storage:/var/www/html/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  # ──────────────────────────────────────────
+  # MySQL — database
+  # ──────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: tugas_akhir_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret}
+      MYSQL_DATABASE: ${DB_DATABASE:-tugas_akhir}
+      MYSQL_USER: ${DB_USERNAME:-laravel}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+# ──────────────────────────────────────────
+# Named volumes
+# ──────────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
+  app_public:
+    driver: local
+  app_storage:
+    driver: local
+
+# ──────────────────────────────────────────
+# Network
+# ──────────────────────────────────────────
+networks:
+  app_network:
+    driver: bridge
