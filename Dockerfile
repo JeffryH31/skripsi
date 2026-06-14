@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 # Skip electron binary download (not needed in Docker/server environment)
 ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
-RUN npm ci --ignore-scripts --omit=optional --legacy-peer-deps
+RUN npm ci --ignore-scripts --legacy-peer-deps
 
 COPY . .
 RUN npm run build
