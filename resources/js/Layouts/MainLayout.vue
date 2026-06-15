@@ -291,7 +291,7 @@ useIdleDetector({
         }
     },
     onActive: () => {
-        showSnackbar('You are back.', 'success');
+        // showSnackbar('You are back.', 'success');
     },
 });
 
