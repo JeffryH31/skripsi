@@ -22,7 +22,7 @@ done
 echo "    MySQL is ready."
 
 echo "==> Running migrations..."
-php artisan migrate --force --no-interaction
+php artisan migrate:fresh --force --no-interaction
 
 echo "==> Creating storage symlink..."
 php artisan storage:link --force 2>/dev/null || true
